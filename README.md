@@ -9,4 +9,4 @@ PeakAreaPlot_All_or_Individual.py
 
 PeakAreaCalc_function.py
 
-    Extracted and revised the XPD area region of interest (ROI) calculation.
+    For XPD peak's area calculation for a selected q range (region of interest, ROI).
