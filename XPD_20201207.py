@@ -2,7 +2,7 @@
 File: Autonomous experiments of the dealloyed Ti-Cu metal
 Name: Cheng-Chu Chung
 ----------------------------------------
-TODO: Simulate gaCAM autonomous data using different searching conditions
+TODO: Simulate gpCAM autonomous data using different searching conditions
 """
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,24 +33,25 @@ def main():
     # print('Thin samples:', len(thin_measurements))
     #################################################################### Run the data
     # check_scan_id_and_CPU_time(gpcam_db)
-    plot_Ti(gpcam_db, pair)
+    # plot_Ti(gpcam_db, pair)
     # plot_temperature(gpcam_db)
     # plot_annealing_time(gpcam_db)
     # plot_roi(gpcam_db)
+    # plot_grid_data(grid_db)
     #################################################################### Simulate gpCAM
     # version_6_of_gpCAM(gpcam_db, pair)
     #################################################################### Run a specific code
-    # the_last_scan = -1    # Scan from the last scan
-    # result = grid_db[the_last_scan]     # Extract data from a scan_id
+    the_last_scan = -3    # Scan from the last scan
+    result = grid_db[the_last_scan]     # Extract data from a scan_id
     # the_last_scan1 = -3
     # result1 = grid_db[the_last_scan1]
-    # # print(result.metadata['start'])
+    # print(result.metadata['start'])
     # # print(result.metadata['start']['hints']['dimensions'][0])
-    # # for i in result.metadata['start']:
-    # #     print(i, result.metadata['start'][i])
-    # otime = result.metadata['start']['original_start_time']
+    # for i in result.metadata['start']:
+    #     print(i, result.metadata['start'][i])
+    otime = result.metadata['start']['original_start_time']
     # otime1 = result1.metadata['start']['original_start_time']
-    # print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(otime)))
+    print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(otime)))
     # print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(otime1)))
     #################################################################### Load Grid data
     # map = np.empty([16, 34])
@@ -80,7 +81,18 @@ def main():
     #               result.metadata['start']['adaptive_step']['snapped']['ctrl_annealing_time'],
     #               result.metadata['start']['adaptive_step']['snapped']['ctrl_thickness']))
     ##################################################################### Read data
-    # print(result1.primary.read())    # Information for each scan, a xarray dataset
+    d = result.primary.read()
+    print(np.shape(d['mean']))
+    print(d)    # Information for each scan, a xarray dataset
+    # print(d['q'])
+    # print(d['mean'])
+    # print('This is the y')
+    # print(d['ss_stg2_y'])
+    # print('This is the x')
+    # print(d['sample_x'])
+    for i in range(10):
+        plt.plot(d['q'][i], d['mean'][i])
+    plt.show()
     ##################################################################### Compute the roi
     # Compute the roi
     # peak_location = (2.925, 2.974)  # region of interest (roi) (351) CuMg2
@@ -206,49 +218,72 @@ def plot_Ti(gpcam_db, pair):
 
 
 def version_6_of_gpCAM(gpcam_db, pair):
-    # time_list = sorted_timelist(gpcam_db, pair)
-
+    time_list = sorted_timelist(gpcam_db, pair)
+    x_ti = []
+    y_temp_and_time = []
+    z_roi = []
+    final_list = []
+    for j in range(len(time_list)):
+        if time_list[j][0] > '2020-12-11 13:15:00' and time_list[j][5] == 0:
+            # Print(Original start start time, Ti, Temp, Annealing time, roi, thickness, beamline_x, beamline_y)
+            print('{}, {:.1f}, {}, {:4}, {:7.4f}, {}, {:6.4f}, {:7.4f}'.format(time_list[j][0], time_list[j][1],
+                                                                             time_list[j][2], time_list[j][3],
+                                                                             time_list[j][4], time_list[j][5],
+                                                                             time_list[j][6], time_list[j][7]))
+            final_list.append(time_list[j])
+            x_ti.append(time_list[j][1])
+            y_temp_and_time.append((time_list[j][2], time_list[j][3]))
+            z_roi.append(time_list[j][4])
+    # a = final_list
     a = np.load("us_topo.npy")
-    rng = default_rng()
-    ind = rng.choice(len(a) - 1, size=3000, replace=False)
-    points = a[ind, 0:2]
-    values = a[ind, 2:3]
-    print("x_min ", np.min(points[:, 0]), " x_max ", np.max(points[:, 0]))
-    print("y_min ", np.min(points[:, 1]), " y_max ", np.max(points[:, 1]))
-    print("length of data set: ", len(points))
-    index_set_bounds = np.array([[0, 99], [0, 248]])
-    hyperparameter_bounds = np.array([[0.001, 1e9], [1, 1000], [1, 1000]])
-    hps_guess = np.array([4.71907062e+06, 4.07439017e+02, 3.59068120e+02])
-    ###################################################################################
-    gp = GPOptimizer(2, 1, 1, index_set_bounds)     # 3, 1, 1 for our system
-    gp.tell(points, values)
-    gp.init_gp(hps_guess)
-    gp.train_gp(hyperparameter_bounds, likelihood_optimization_pop_size=20,
-                likelihood_optimization_tolerance=1e-6, likelihood_optimization_max_iter=2)
-    x_pred = np.empty((10000, 2))
-    counter = 0
-    x = np.linspace(0, 99, 100)
-    y = np.linspace(0, 248, 100)
-    for i in x:
-        for j in y:
-            x_pred[counter] = np.array([i, j])
-            counter += 1
-    res1 = gp.gp.posterior_mean(x_pred)
-    res2 = gp.gp.posterior_covariance(x_pred)
-    # res3 = gp.gp.shannon_information_gain(x_pred)
-    X, Y = np.meshgrid(x, y)
-    PM = np.reshape(res1["f(x)"], (100, 100))
-    PV = np.reshape(res2["v(x)"], (100, 100))
-    plt.figure(figsize=(10, 10))
-    plt.pcolormesh(X, Y, PM)
-    plt.figure(figsize=(10, 10))
-    plt.pcolormesh(X, Y, PV)
-    plt.show()
-    next = gp.ask(position=None, n=1, objective_function="covariance", optimization_bounds=None,
-                  optimization_method="global", optimization_pop_size=50, optimization_max_iter=20,
-                  optimization_tol=10e-6, dask_client=False)
-    print(next)
-
+    print(a)
+    # rng = default_rng()
+    # ind = rng.choice(len(a) - 1, size=3000, replace=False)
+    # points = a[ind, 0:2]
+    # values = a[ind, 2:3]
+    # print("x_min ", np.min(points[:, 0]), " x_max ", np.max(points[:, 0]))
+    # print("y_min ", np.min(points[:, 1]), " y_max ", np.max(points[:, 1]))
+    # print("length of data set: ", len(points))
+    # index_set_bounds = np.array([[0, 99], [0, 248]])
+    # hyperparameter_bounds = np.array([[0.001, 1e9], [1, 1000], [1, 1000]])
+    # hps_guess = np.array([4.71907062e+06, 4.07439017e+02, 3.59068120e+02])
+    # ###################################################################################
+    # gp = GPOptimizer(3, 1, 1, index_set_bounds)     # 3, 1, 1 for our system
+    # gp.tell(points, values)
+    # gp.init_gp(hps_guess)
+    # gp.train_gp(hyperparameter_bounds, likelihood_optimization_pop_size=20,
+    #             likelihood_optimization_tolerance=1e-6, likelihood_optimization_max_iter=2)
+    # x_pred = np.empty((10000, 2))
+    # counter = 0
+    # x = np.linspace(0, 99, 100)
+    # y = np.linspace(0, 248, 100)
+    # for i in x:
+    #     for j in y:
+    #         x_pred[counter] = np.array([i, j])
+    #         counter += 1
+    # res1 = gp.gp.posterior_mean(x_pred)
+    # res2 = gp.gp.posterior_covariance(x_pred)
+    # # res3 = gp.gp.shannon_information_gain(x_pred)
+    # X, Y = np.meshgrid(x, y)
+    # PM = np.reshape(res1["f(x)"], (100, 100))
+    # PV = np.reshape(res2["v(x)"], (100, 100))
+    # plt.figure(figsize=(10, 10))
+    # plt.pcolormesh(X, Y, PM)
+    # plt.figure(figsize=(10, 10))
+    # plt.pcolormesh(X, Y, PV)
+    # plt.show()
+    # next = gp.ask(position=None, n=1, objective_function="covariance", optimization_bounds=None,
+    #               optimization_method="global", optimization_pop_size=50, optimization_max_iter=20,
+    #               optimization_tol=10e-6, dask_client=False)
+    # print(next)
+    # for i in range(10):
+    #     next = gp.ask(position=None, n=1, objective_function="covariance", optimization_bounds=None,
+    #               optimization_method="global", optimization_pop_size=50, optimization_max_iter=20,
+    #               optimization_tol=10e-6, dask_client=False)
+    #     print(next)
+    #     next_roi =
+    #     points = np.column_stack([points, next])
+    #     values = np.column_stack([values, next[roi]])
 
 def sorted_timelist(gpcam_db, pair):
     """
@@ -279,6 +314,29 @@ def sorted_timelist(gpcam_db, pair):
 
     time_list.sort()
     return time_list
+
+
+def plot_grid_data(grid_db, peak_loc=(2.925, 2.974)):
+    print('Original start time, plan name and shape')
+    # Count the grid data
+    peak_location = peak_loc  # region of interest (roi) (351) CuMg2
+    time_list = []
+    for i in range(1, len(grid_db) + 1):  # Extract all information from metadata['start']
+        result = grid_db[-i]
+        # q, I, snapped, requested = extract_data(result)
+        # roi = compute_peak_area(q, I, *peak_location)
+        # roi = np.array([roi])
+        otime = result.metadata['start']['original_start_time']  # Assign original_start_time as otime
+        plan_name = result.metadata['start']['plan_name']
+        if 'shape' in result.metadata['start']:
+            shape = result.metadata['start']['shape']
+        else:
+            shape = None
+        time_list.append(
+            (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(otime)), plan_name, shape)) # Append (time, roi, thickness)
+    time_list.sort()
+    for j in range(len(time_list)):
+        print(time_list[j])
 
 
 def plot_roi(gpcam_db, peak_loc=(2.925, 2.974)):
