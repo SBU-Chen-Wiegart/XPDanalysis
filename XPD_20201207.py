@@ -6,6 +6,7 @@ TODO: Simulate gpCAM autonomous data using different searching conditions
 """
 import matplotlib.pyplot as plt
 import numpy as np
+from mayavi import mlab
 import pandas as pd
 from dataclasses import dataclass, asdict, astuple, field
 from collections import namedtuple, defaultdict
@@ -15,7 +16,9 @@ import json
 from gpcam.gp_optimizer import GPOptimizer
 from numpy.random import default_rng
 from scipy.interpolate import CubicSpline
+import plotly.graph_objects as go
 TransformPair = namedtuple("TransformPair", ["forward", "inverse"])
+
 
 
 def main():
@@ -36,16 +39,16 @@ def main():
     # print('Thin samples:', len(thin_measurements))
     #################################################################### Run the data
     # check_scan_id_and_CPU_time(gpcam_db)
-    # plot_Ti(gpcam_db, pair, grid_db)
+    # plot_gpcam(gpcam_db, pair, grid_db, grid_missing)
     # plot_temperature(gpcam_db)
     # plot_annealing_time(gpcam_db)
     # plot_roi(gpcam_db)
-    # plot_grid_data(grid_db, pair)
-    # plot_xca_from_karen()
-    # grid_list(grid_db, pair)
+    plot_grid_data(grid_db, grid_missing, pair)
+    # plot_xca_from_karen(grid_db, pair, grid_missing, peak_location=(2.635, 2.708))
+    # grid_list(grid_db, pair, grid_missing)
     # ti_, temp_, time_, thickness_ = pair[1](68.5, 31.95)
     # print(ti_, temp_, time_, thickness_)
-    # plot_xca(xca_db, pair, grid_db, peak_loc=(2.925, 2.974))
+    # plot_xca(xca_db, pair, grid_db, grid_missing, peak_loc=(1.526, 1.588))
     """
     Cu2Mg(311): (2.925, 2.974)
     Cu2Mg(111): (1.526, 1.588)
@@ -56,67 +59,53 @@ def main():
     #################################################################### Simulate gpCAM
     # version_6_of_gpCAM(gpcam_db, pair)
     #################################################################### Run a specific code
-    # the_last_scan = -3    # Scan from the last scan
-    # result = grid_db[the_last_scan]     # Extract data from a scan_id
-    the_last_scan1 = -2
-    result1 = grid_missing[the_last_scan1]
-    print(result1.primary.read())
-    # for center in range(1, len(xca_db)):
-    #     print(xca_db[-center].metadata['start']['center_point'])
-    # for i in result1.metadata['start']:
-    #     print(i, result1.metadata['start'][i])
+    # the_last_scan = -15    # Scan from the last scan
+    # result = xca_db[the_last_scan]     # Extract data from a scan_id
+    # print(result.metadata['start']['batch_scan']['points'])
+    # for i in result.metadata['start']:
+    #     print(i, result.metadata['start'][i])
     # otime = result.metadata['start']['original_start_time']
-    # otime1 = result1.metadata['start']['original_start_time']
     # print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(otime)))
-    # print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(otime1)))
-    #################################################################### Load Grid data
-    # map = np.empty([16, 34])
-    # for y1 in range(1, np.shape(CuMg_311_351_norm)[0]):
-    #     for x1 in range(1, np.shape(CuMg_311_351_norm)[1]):
-    #         map[y1-1, x1-1] = CuMg_311_351_norm[y1, x1]
-    # plt.imshow(map, interpolation='bicubic', extent=[28.5, 94.5, 84.2, 12.95], origin='lower',
-    #            cmap='plasma')
-    # plt.colorbar()
-    # # dx, dy = 0.015, 0.05
-    # # y, x = np.mgrid[slice(-4, 4 + dy, dy),
-    # #                 slice(-4, 4 + dx, dx)]
-    # # z = (1 - x / 3. + x ** 6 + y ** 3) * np.exp(-x ** 2 - y ** 2)
-    # # z = z[:-1, :-1]
-    # # z_min, z_max = -np.abs(z).max(), np.abs(z).max()
-    # # c = plt.pcolormesh(x, y, z, cmap='Greens', vmin=z_min, vmax=z_max)
-    # # plt.colorbar(c)
-    # plt.title('2.965 (Cu2Mg) (3 1 1) or 2.9499 (CuMg2) (3 5 1) \n peak location = [2.925, 2.974]')
-    # # fig, ax = plt.subplots()
-    # # ax.pcolormesh(x, y, z)
-    # plt.xlabel('X location - Ti Composition (at.%)')
-    # plt.ylabel('Y location - Dealloying Time and Temperature')
-    # plt.show()
     #################################################################### Convert the coordinates based on Json file
     # print(pair[0](result.metadata['start']['adaptive_step']['snapped']['ctrl_Ti'],
     #               result.metadata['start']['adaptive_step']['snapped']['ctrl_temp'],
     #               result.metadata['start']['adaptive_step']['snapped']['ctrl_annealing_time'],
     #               result.metadata['start']['adaptive_step']['snapped']['ctrl_thickness']))
     ##################################################################### Read data
-    # d = result.primary.read()
-    # print(d)
-    ##################################################################### Compute the roi
-    # Compute the roi
-    # peak_location = (2.925, 2.974)  # region of interest (roi) (351) CuMg2
-    # q, I, snapped, requested = extract_data(result)
-    # roi = np.array([compute_peak_area(q, I, *peak_location)])
-    # # roi = np.array([roi])
-    # print(roi[0])
-    ##################################################################### Make a plot of a single measurement
-    # fig, ax = plt.subplots()
-    # ax.plot(q, I, label=str(snapped.values()))
-    # # Label shows: 'ctrl_Ti', 'ctrl_annealing_time', 'ctrl_temp', 'ctrl_thickness'
-    # ax.legend()
-    # ax.set_xlabel('q')
-    # ax.set_ylabel('I')
-    # plt.show()
+    # print(pair[0](51, 340, 450, 0))
+    # for i in load_from_json('layout.json'):
+    #     words = str(i)
+    #     print(words)
+    #     index_ti = words.find(']')
+    #     print(words[index_ti-2:index_ti])
+    #     index_temp = words.find(',')
+    #     print(words[index_temp-3:index_temp])
+    #     index_time = words.find(',', index_temp + 1)
+    #     index_equal = words.find('=', index_temp + 1)
+    #     print(words[index_equal+1:index_time])
+    #     print(words[-2])
+    # number = np.linspace(1, 6, 10)
+    # print(number)
+    # X, Y, Z = np.mgrid[-1:1:30j, -1:1:30j, -1:1:30j]
+    # X = np.linspace(-1, 1, 30)
+    # Y = np.linspace(-1, 1, 30)
+    # Z = np.linspace(-1, 1, 30)
+    # values = np.sin(np.pi * X) * np.cos(np.pi * Z) * np.sin(np.pi * Y)
+    #
+    # fig = go.Figure(data=go.Volume(
+    #     x=X.flatten(),
+    #     y=Y.flatten(),
+    #     z=Z.flatten(),
+    #     value=values.flatten(),
+    #     isomin=-0.1,
+    #     isomax=0.8,
+    #     opacity=0.1,  # needs to be small to see through all surfaces
+    #     surface_count=21,  # needs to be a large number for good volume rendering
+    # ))
+    # fig.show()
 
 
-def plot_xca(xca_db, pair, grid_db, peak_loc=(2.925, 2.974)):
+def plot_xca(xca_db, pair, grid_db, grid_missing, peak_loc=(2.925, 2.974)):
     """
     Cu2Mg(311): (2.925, 2.974)
     Cu2Mg(111): (1.526, 1.588)
@@ -130,32 +119,61 @@ def plot_xca(xca_db, pair, grid_db, peak_loc=(2.925, 2.974)):
     """
     print('Original start time, Ti, temp, time, roi, thickness, beamline x, beamline y and phase')
     time_list = []
-    initial_ti = 0.0
-    index = 0
-    phase = 'None'
+    initial_ti = 0.0  # To sort out the XCA searching phase
+    index = 0   # To sort out the XCA searching phase
+    phase = 'None'  # To sort out the XCA searching phase
+    inner_index = 0     # To count the inner points
     peak_location = peak_loc
+    P1_P2_list = ["Ti", "Ti", "Ti", "MgCu2", "Ti", "Ti", "Ti", "Ti", "Ti", "Mg2Cu",
+                  "Ti", "Mg2Cu", "Mg2Cu", "Mg2Cu", "Ti", "Ti", "MgCu2", "Ti", "MgCu2", "MgCu2",
+                  "Ti", "Ti", "MgCu2", "MgCu2", "MgCu2", "Ti", "Ti",
+                  "Ti", "Ti", "Ti", "Ti", "Ti", "Ti", "Mg2Cu", "Mg2Cu", "MgCu2", "MgCu2",
+                  "Ti", "Ti", "Ti", "Mg2Cu", "MgCu2", "Ti", "Ti", "Ti", "MgCu2", "MgCu2",
+                  "MgCu2", "MgCu2", "Ti", "MgCu2", "MgCu2", "MgCu2", "MgCu2"]
     for i in range(1, len(xca_db) + 1):  # Extract all information from metadata['start']
         result = xca_db[-i]
+        points = result.metadata['start']['batch_scan']['points']
+        ti_range = result.metadata['start']['batch_scan']['ti_range']
         otime = result.metadata['start']['original_start_time']  # Assign original_start_time as otime
         ti = result.metadata['start']['center_point'][0]
+        if ti != initial_ti:    # Be careful this ti, it only works when the next ti is different
+            phase = P1_P2_list[index]
+            index += 1
+            # if index % 3 == 1:
+            #     phase = 'MgCu2'
+            # elif index % 3 == 2:
+            #     phase = 'Ti'
+            # else:
+            #     phase = 'Mg2Cu'
+            initial_ti = ti
+            inner_index = 0
+        else:
+            inner_index += 1
+            inner_increment = np.linspace(0, 0+ti_range, points)[1] - np.linspace(0, 0+ti_range, points)[0]
+            ti += inner_increment*inner_index
+            # print(ti)
         temp = result.metadata['start']['center_point'][1]
         annealing_time = result.metadata['start']['center_point'][2]
-        peak_location = peak_location
         q, I = result.primary.read()['q'].mean('time'), result.primary.read()['mean'].mean('time')
         # compute_total_area(q, I)  # Compute the total area of the spectrum
         roi = compute_peak_area(q, I, *peak_location)
         roi = np.array([roi])
         thickness = result.metadata['start']['center_point'][3]
+        for chs in load_from_json('layout.json'):   # To find the maximum Ti% edge and over value would be initial Ti%
+            words = str(chs)    # Check the layout file and you will know the character
+            index_ti = words.find(']')
+            index_temp = words.find(',')
+            index_time = words.find(',', index_temp + 1)
+            index_equal = words.find('=', index_temp + 1)
+            if temp == int(words[index_temp - 3:index_temp])\
+            and annealing_time == int(words[index_equal + 1:index_time])\
+            and thickness == int(words[-2]) \
+            and ti > int(words[index_ti - 2:index_ti]):     # If Ti% beyond the maximum
+                ti = result.metadata['start']['center_point'][0]
+                # ti = result.metadata['start']['center_point'][0] + np.linspace(ti, ti + ti_range, points)[
+                #     points - total_points + i - 1
+                #     ] - ti
         beamline_x, beamline_y = pair[0](ti, temp, annealing_time, thickness)
-        if ti != initial_ti:
-            index += 1
-            if index % 3 == 1:
-                phase = 'MgCu2'
-            elif index % 3 == 2:
-                phase = 'Ti'
-            else:
-                phase = 'Mg2Cu'
-            initial_ti = ti
 
         # Append (Original start start time, Ti, Temp, Annealing time, roi, thickness, beamline_x, beamline_y, phase)
         time_list.append((time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(otime)),
@@ -223,25 +241,26 @@ def plot_xca(xca_db, pair, grid_db, peak_loc=(2.925, 2.974)):
             y_axis_time_Mg2Cu.append(time_list[j][3])
             intensity_roi_Mg2Cu.append(time_list[j][4])
 
-    grid_array = grid_list(grid_db, pair, peak_loc=peak_location)
+    grid_array = grid_list(grid_db, pair, grid_missing, peak_loc=peak_location)     # Call the grid scan background
+    # print(grid_array)
     map_thin = np.empty(
         [8, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
     for row in range(8):
         for column in range(34):
             map_thin[row, column] = grid_array[34 * row + column][2]  # Scan from left to right, down to upper
     map_thick = np.empty(
-        [7, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
-    for row in range(7):
+        [9, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
+    for row in range(9):
         for column in range(34):
             map_thick[row, column] = grid_array[34 * (row + 9) + column][2]  # Scan from left to right, down to upper
     # Plot the grid scan background
-    plt.imshow(map_thick, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 41.45, 12.95],
+    plt.imshow(map_thick, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 41.45, 3.45],
                origin='lower',
                cmap='plasma')  # Y range = 41.45 to 12.95 mm, vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00045,
     plt.imshow(map_thin, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 84.2, 50.95],
                origin='lower',
                cmap='plasma')  # Y range = 84.2 to 50.95 mm  vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00045,
-    plt.text(82, 47.5,
+    plt.text(83, 47.5,
              'Ni standard on glass slide',
              fontsize=12)
     cbar = plt.colorbar()
@@ -255,43 +274,43 @@ def plot_xca(xca_db, pair, grid_db, peak_loc=(2.925, 2.974)):
     Beta Ti(110): (2.635, 2.708)
     """
     if peak_location == (1.526, 1.588):
-        plt.scatter(beamline_x_axis_MgCu2, beamline_y_axis_MgCu2, marker='^', s=32, edgecolor='black', facecolor='None',
-                    label='Acquiring data', linestyle='-', linewidth=0.5)
+        plt.scatter(beamline_x_axis_MgCu2, beamline_y_axis_MgCu2, marker='^', s=32, edgecolor='w', facecolor='None',
+                    label='$\mathregular{Cu_2Mg}$', linestyle='-', linewidth=0.5)
         plt.title('Crystallography companion agent (XCA) scan\n'
                   '1.547 ($\mathregular{Cu_2Mg}$) (1 1 1)\n'
                   'Peak location = [1.526, 1.588]')
     if peak_location == (2.635, 2.708):
-        plt.scatter(beamline_x_axis_Ti, beamline_y_axis_Ti, marker='o', s=32, edgecolor='black', facecolor='None',
-                    label='Acquiring data', linestyle='-', linewidth=0.5)
+        plt.scatter(beamline_x_axis_Ti, beamline_y_axis_Ti, marker='v', s=32, edgecolor='w', facecolor='None',
+                    label=r'$\mathregular{Ti}$', linestyle='-', linewidth=0.5)
         plt.title('Crystallography companion agent (XCA) scan\n'
                   r'2.665 ($\mathregular{\beta-Ti}$) (1 1 0)''\n'
                   'Peak location = [2.635, 2.708]')
     if peak_location == (2.734, 2.779):
-        plt.scatter(beamline_x_axis_Mg2Cu, beamline_y_axis_Mg2Cu, marker='o', s=32, edgecolor='black', facecolor='None',
-                    label='Acquiring data', linestyle='-', linewidth=0.5)
+        plt.scatter(beamline_x_axis_Mg2Cu, beamline_y_axis_Mg2Cu, marker='o', s=32, edgecolor='w', facecolor='None',
+                    label='$\mathregular{CuMg_2}$', linestyle='-', linewidth=0.5)
         plt.title('Crystallography companion agent (XCA) scan\n'
                   '2.755 ($\mathregular{CuMg_2}$) (0 8 0)\n'
                   'Peak location = [2.734, 2.779]')
     if peak_location == (2.925, 2.974):
-        plt.scatter(beamline_x_axis_MgCu2, beamline_y_axis_MgCu2, marker='^', s=32, edgecolor='black', facecolor='None',
-                    label='$\mathregular{Cu_2Mg}$ (3 1 1)', linestyle='-', linewidth=0.5)
-        plt.scatter(beamline_x_axis_Mg2Cu, beamline_y_axis_Mg2Cu, marker='o', s=32, edgecolor='black', facecolor='None',
-                    label='$\mathregular{CuMg_2}$ (3 5 1)', linestyle='-', linewidth=0.5)
+        plt.scatter(beamline_x_axis_MgCu2, beamline_y_axis_MgCu2, marker='^', s=32, edgecolor='w', facecolor='None',
+                    label='$\mathregular{Cu_2Mg}$', linestyle='-', linewidth=0.5)
+        plt.scatter(beamline_x_axis_Mg2Cu, beamline_y_axis_Mg2Cu, marker='o', s=32, edgecolor='w', facecolor='None',
+                    label='$\mathregular{CuMg_2}$', linestyle='-', linewidth=0.5)
         plt.title('Crystallography companion agent (XCA) scan\n'
                   '2.965 ($\mathregular{Cu_2Mg}$) (3 1 1) or 2.9499 ($\mathregular{CuMg_2}$) (3 5 1)\n'
                   'Peak location = [2.925, 2.974]')
     if peak_location == (3.047, 3.106):
-        plt.scatter(beamline_x_axis_MgCu2, beamline_y_axis_MgCu2, marker='^', s=32, edgecolor='black', facecolor='None',
-                    label='$\mathregular{Cu_2Mg}$ (2 2 2)', linestyle='-', linewidth=0.5)
-        plt.scatter(beamline_x_axis_Mg2Cu, beamline_y_axis_Mg2Cu, marker='o', s=32, edgecolor='black', facecolor='None',
-                    label='$\mathregular{CuMg_2}$ (4 4 0)', linestyle='-', linewidth=0.5)
+        plt.scatter(beamline_x_axis_MgCu2, beamline_y_axis_MgCu2, marker='^', s=32, edgecolor='w', facecolor='None',
+                    label='$\mathregular{Cu_2Mg}$', linestyle='-', linewidth=0.5)
+        plt.scatter(beamline_x_axis_Mg2Cu, beamline_y_axis_Mg2Cu, marker='o', s=32, edgecolor='w', facecolor='None',
+                    label='$\mathregular{CuMg_2}$', linestyle='-', linewidth=0.5)
         plt.title('Crystallography companion agent (XCA) scan\n'
                   '3.093 ($\mathregular{Cu_2Mg}$) (2 2 2) or 3.095 ($\mathregular{CuMg_2}$) (4 4 0)\n'
                   'Peak location = [3.047, 3.106]')
 
     plt.ylim(84.2, 3.45)
-    plt.xlabel('X position (mm)')
-    plt.ylabel('Y position (mm)')
+    plt.xlabel('X position (mm)', fontsize=12)
+    plt.ylabel('Y position (mm)', fontsize=12)
     plt.legend(loc='upper left')
     plt.show()
     ########################################## Plot 3D visualization (Ti concentration, Annealing temperature and time)
@@ -299,6 +318,7 @@ def plot_xca(xca_db, pair, grid_db, peak_loc=(2.925, 2.974)):
     y = np.array(y_axis_temp)
     z = np.array(z_axis_time)
     intensity = np.array(intensity_roi)
+    # print(intensity)
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.set_xlabel('Ti concentration')
@@ -314,7 +334,7 @@ def plot_xca(xca_db, pair, grid_db, peak_loc=(2.925, 2.974)):
     plt.show()
 
 
-def plot_xca_from_karen():
+def plot_xca_from_karen(grid_db, pair, grid_missing, peak_location=(2.925, 2.974)):
     df = pd.read_csv('output_probabilities.csv')
     xca_data = np.array(df)
     P0 = np.array([])
@@ -322,54 +342,91 @@ def plot_xca_from_karen():
     Probability_of_mgcu2 = np.array([])
     Probability_of_ti = np.array([])
     Probability_of_mg2cu = np.array([])
+    parameters = np.array([])
     for i in range(len(xca_data)):
         P0 = np.append(P0, xca_data[i][1])
         P1 = np.append(P1, xca_data[i][2])
         Probability_of_mgcu2 = np.append(Probability_of_mgcu2, xca_data[i][3])
         Probability_of_ti = np.append(Probability_of_ti, xca_data[i][4])
         Probability_of_mg2cu = np.append(Probability_of_mg2cu, xca_data[i][5])
-    # print(Probability_of_mgcu2)
-    # X, Y = np.meshgrid(P0, P1)
-    # Z = Probability_of_mgcu2
-    # plt.pcolormesh(X, Y, Z)
-    # heatmap, xedges, yedges = np.histogram2d(P0, P1, bins=(len(P0), len(P1)))
-    # heatmap = gaussian_filter(heatmap, sigma=32)
-    # img = heatmap.T
-    # plt.imshow(img, interpolation='bicubic', origin='lower',
-    #            extent=[28.5, 94.5, 84.2, 3.45], cmap='plasma')
-    # map = np.empty([16, 34])
-    # for y1 in range(1, np.shape(CuMg_311_351_norm)[0]):
-    #     for x1 in range(1, np.shape(CuMg_311_351_norm)[1]):
-    #         map[y1 - 1, x1 - 1] = CuMg_311_351_norm[y1, x1]
-    # plt.imshow(map, interpolation='bicubic', extent=[28.5, 94.5, 84.2, 3.45], origin='lower',
-    #            cmap='plasma')  # Y range = 84.2 to 12.95 mm
-    plt.scatter(P0, P1, c=Probability_of_mgcu2, marker='o', s=32,
-                label='MgCu2')
-    # plt.gca().invert_xaxis()  # Invert the x axis
-    plt.gca().invert_yaxis()  # Invert the y axis
-    plt.clim(0.05, 0.5)
-    plt.colorbar()
-    plt.title('$\mathregular{MgCu_2}$')
-    plt.show()
-    plt.scatter(P0, P1, c=Probability_of_ti, marker='o', s=32,
-                label='Ti')
-    # plt.gca().invert_xaxis()  # Invert the x axis
-    plt.gca().invert_yaxis()  # Invert the y axis
-    plt.clim(0.05, 0.5)
-    plt.colorbar()
-    plt.title('$\mathregular{Ti}$')
-    plt.show()
-    plt.scatter(P0, P1, c=Probability_of_mg2cu, marker='o', s=32,
-                label='Mg2Cu')
-    # plt.gca().invert_xaxis()  # Invert the x axis
-    plt.gca().invert_yaxis()  # Invert the y axis
-    plt.clim(0.05, 0.5)
-    plt.colorbar()
-    plt.title('$\mathregular{Mg_2Cu}$')
-    plt.show()
+    ################################
+    """
+        Cu2Mg(311): (2.925, 2.974)
+        Cu2Mg(111): (1.526, 1.588)
+        CuMg2(080): (2.734, 2.779)
+        Cu2Mg(222): (3.047, 3.106)
+        Beta Ti(110): (2.635, 2.708)
+    """
+    grid_array = grid_list(grid_db, pair, grid_missing, peak_loc=peak_location)  # Call the grid scan background
+    print(grid_array)
+    map_thin = np.empty(
+        [8, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
+    for row in range(8):
+        for column in range(34):
+            map_thin[row, column] = grid_array[34 * row + column][2]  # Scan from left to right, down to upper
+    map_thick = np.empty(
+        [9, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
+    for row in range(9):
+        for column in range(34):
+            map_thick[row, column] = grid_array[34 * (row + 9) + column][2]  # Scan from left to right, down to upper
+    # Plot the grid scan background
+    plt.imshow(map_thick, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 41.45, 3.45],
+               origin='lower',
+               cmap='plasma')  # Y range = 41.45 to 12.95 mm, vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00045,
+    plt.imshow(map_thin, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 84.2, 50.95],
+               origin='lower',
+               cmap='plasma')  # Y range = 84.2 to 50.95 mm  vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00045,
+    plt.text(85, 47.5,
+             'Ni standard on glass slide',
+             fontsize=12)
+    cbar = plt.colorbar(pad=0.1)
+    cbar.set_label('Region of interest (Roi)', size=12)
+    ################################
+    if peak_location == (1.526, 1.588):
+        plt.scatter(P0, P1, c=Probability_of_mgcu2, marker='o', s=32,
+                    label='MgCu2')
+        # plt.gca().invert_xaxis()  # Invert the x axis
+        # plt.gca().invert_yaxis()  # Invert the y axis
+        plt.clim(0.00, 0.6)
+        plt.ylim(84.2, 3.45)
+        plt.xlabel('X position (mm)', fontsize=12)
+        plt.ylabel('Y position (mm)', fontsize=12)
+        cbar = plt.colorbar()
+        cbar.set_label('Output probabilities', size=12)
+        plt.title('1.547 ($\mathregular{Cu_2Mg}$) (1 1 1)\n'
+                  'Peak location = [1.526, 1.588]')
+        plt.show()
+    if peak_location == (2.635, 2.708):
+        plt.scatter(P0, P1, c=Probability_of_ti, marker='o', s=32,
+                    label='Ti')
+        # plt.gca().invert_xaxis()  # Invert the x axis
+        # plt.gca().invert_yaxis()  # Invert the y axis
+        plt.clim(0.00, 0.6)
+        plt.ylim(84.2, 3.45)
+        plt.xlabel('X position (mm)', fontsize=12)
+        plt.ylabel('Y position (mm)', fontsize=12)
+        cbar = plt.colorbar()
+        cbar.set_label('Output probabilities', size=12)
+        plt.title(r'2.665 ($\mathregular{\beta-Ti}$) (1 1 0)''\n'
+                  'Peak location = [2.635, 2.708]')
+        plt.show()
+    if peak_location == (2.734, 2.779):
+        plt.scatter(P0, P1, c=Probability_of_mg2cu, marker='o', s=32,
+                    label='Mg2Cu')
+        # plt.gca().invert_xaxis()  # Invert the x axis
+        # plt.gca().invert_yaxis()  # Invert the y axis
+        plt.clim(0.00, 0.6)
+        plt.ylim(84.2, 3.45)
+        plt.xlabel('X position (mm)', fontsize=12)
+        plt.ylabel('Y position (mm)', fontsize=12)
+        cbar = plt.colorbar()
+        cbar.set_label('Output probabilities', size=12)
+        plt.title('2.755 ($\mathregular{CuMg_2}$) (0 8 0)\n'
+                  'Peak location = [2.734, 2.779]')
+        plt.show()
 
 
-def plot_Ti(gpcam_db, pair, grid_db):
+def plot_gpcam(gpcam_db, pair, grid_db, grid_missing):
     print('Original start time, Ti, temp, time, roi, thickness, beamline x and beamline y')
     time_list = []
     for i in range(1, len(gpcam_db) + 1):  # Extract all information from metadata['start']
@@ -427,7 +484,7 @@ def plot_Ti(gpcam_db, pair, grid_db):
                 y_axis_thick.append(time_list[j][1])
     ###################################################### Plot 2D stacking map (grid and gpCAM data)
     # ----------------------------------------------- From plot_grid_data function
-    grid_array = grid_list(grid_db, pair)  # From grid_list function
+    grid_array = grid_list(grid_db, pair, grid_missing)  # From grid_list function
     map = np.empty([16, 34])  # Create a empty array to store the data point for the 2D mapping
     time_and_temp_axis = np.array([])  # Store the y information
     for row in range(16):
@@ -458,7 +515,7 @@ def plot_Ti(gpcam_db, pair, grid_db):
         plt.xlabel('X position (mm)')
         plt.ylabel('Region of interest (Roi)')
         plt.legend(['CubicSpline interpolation', 'Experimental results'])
-        plt.show()
+        # plt.show()
     # #################################################### Plot the grid scan background
     map_thin = np.empty(
         [8, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
@@ -466,38 +523,41 @@ def plot_Ti(gpcam_db, pair, grid_db):
         for column in range(34):
             map_thin[row, column] = grid_array[34 * row + column][2]  # Scan from left to right, down to upper
     map_thick = np.empty(
-        [7, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
-    for row in range(7):
+        [9, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
+    for row in range(9):
         for column in range(34):
             map_thick[row, column] = grid_array[34 * (row + 9) + column][2]  # Scan from left to right, down to upper
     ################################################## Heat map
-    plt.imshow(map_thick, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 41.45, 12.95],
+    plt.imshow(map_thick, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 41.45, 3.45],
                origin='lower',
                cmap='plasma')  # Y range = 41.45 to 12.95 mm, vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00045,
     plt.imshow(map_thin, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 84.2, 50.95],
                origin='lower',
                cmap='plasma')  # Y range = 84.2 to 50.95 mm  vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00045,
-    plt.text(82, 47.5,
+    plt.text(84, 47.5,
              'Ni standard on glass slide',
              fontsize=12)
-    cbar = plt.colorbar()
+    cbar = plt.colorbar(pad=0.13)
     cbar.set_label('Region of interest (Roi)', size=12)
     # plt.clim(-0.07, 0.37)
     plt.ylim(84.2, 3.45)
     plt.xlabel('X position (mm)')
     plt.ylabel('Y position (mm)')
-    # ------------------------------------------------ From plot grid data above
+    ################################################### Plot gpCAM data
     plt.plot(beamline_x_axis, beamline_y_axis, color='k',
              label='Trajectory', linestyle='--', linewidth=0.5)
-    plt.scatter(beamline_x_axis, beamline_y_axis, marker='o', s=32, edgecolor='black', facecolor='None',
-                label='Acquiring data', linestyle='-', linewidth=0.5)
+    plt.scatter(beamline_x_axis, beamline_y_axis, c=intensity_roi, marker='o', s=32,
+                label='Acquiring data', linestyle='-', linewidth=0.5)   # edgecolor='black', facecolor='None',
+    cbar = plt.colorbar()
+    cbar.set_label('Region of interest (Roi)', size=12)
+    plt.clim(-0.07, 0.37)
     # plt.scatter(beamline_x_axis, beamline_y_axis, c=x_axis_color, marker='o', s=32,
     #             label='Region of interest', linestyle='-', linewidth=1)
     # text_x = str(beamline_x_axis.tolist())
     # text_y = str(beamline_y_axis.tolist())
     # plt.text(text_x, text_y, x_axis, fontsize=9)
-    plt.xlabel('X position (mm)')
-    plt.ylabel('Y position (mm)')
+    plt.xlabel('X position (mm)', fontsize=12)
+    plt.ylabel('Y position (mm)', fontsize=12)
     # plt.ylim(84.2, 3.45)
     # plt.gca().invert_xaxis()    # Invert the x axis
     plt.title('gpCAM run number after 1:15 pm\n'
@@ -525,6 +585,20 @@ def plot_Ti(gpcam_db, pair, grid_db):
               'Peak location = [2.925, 2.974]')
     plt.legend()
     plt.show()
+
+    # X, Y, Z = np.meshgrid(x, y, z)
+    # s = intensity.reshape(len(X), len(Y), len(Z))
+    # b1 = np.percentile(s, 20)
+    # b2 = np.percentile(s, 80)
+    # mlab.pipeline.volume(mlab.pipeline.scalar_field(s), vmin=b1, vmax=b2)
+    # """
+    # For such a visualization,
+    # tweaking the opacity transfer function is critical to achieve a good effect.
+    # Typically, it can be useful to limit the lower and upper values to the 20 and 80 percentiles of the data,
+    # in order to have a reasonable fraction of the volume transparent.
+    # """
+    # mlab.axes()
+    # mlab.show()
 
 
 def version_6_of_gpCAM(gpcam_db, pair):
@@ -572,7 +646,6 @@ def version_6_of_gpCAM(gpcam_db, pair):
     print(next)
 
 
-
 def sorted_timelist(gpcam_db, pair):
     """
     :param gpcam_db: dataset, gpcam_db data
@@ -604,7 +677,7 @@ def sorted_timelist(gpcam_db, pair):
     return time_list
 
 
-def plot_grid_data(grid_db, pair, peak_loc=(2.925, 2.974)):
+def plot_grid_data(grid_db, grid_missing, pair, peak_loc=(1.526, 1.588)):
     """
         Cu2Mg(311): (2.925, 2.974)
         Cu2Mg(111): (1.526, 1.588)
@@ -655,31 +728,34 @@ def plot_grid_data(grid_db, pair, peak_loc=(2.925, 2.974)):
     plt.ylabel('Intensity (a.u.)')
     plt.xlabel('q')
     plt.show()
-    grid_array = grid_array.reshape(-1, 3)  # Make it easier to be processed
+    ########################
+    grid_array = grid_list(grid_db, pair, grid_missing, peak_loc=peak_location)  # Call the grid scan background
+    print(grid_array)
     map_thin = np.empty(
         [8, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
     for row in range(8):
         for column in range(34):
             map_thin[row, column] = grid_array[34 * row + column][2]  # Scan from left to right, down to upper
     map_thick = np.empty(
-        [7, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
-    for row in range(7):
+        [9, 34])  # We were supposed to have 18X34, but the last two rows didn't be measured due to beam down
+    for row in range(9):
         for column in range(34):
             map_thick[row, column] = grid_array[34 * (row + 9) + column][2]  # Scan from left to right, down to upper
-    ################################################## Heat map
-    plt.imshow(map_thick, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 41.45, 12.95],
+    # Plot the grid scan background
+    plt.imshow(map_thick, interpolation='bicubic', extent=[94.5, 28.5, 41.45, 3.45],
                origin='lower',
-               cmap='plasma')  # Y range = 41.45 to 12.95 mm, vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00033,
-    plt.imshow(map_thin, vmin=-0.07, vmax=0.37, interpolation='bicubic', extent=[94.5, 28.5, 84.2, 50.95],
+               cmap='plasma')  # Y range = 41.45 to 12.95 mm, vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00045,
+    plt.imshow(map_thin, interpolation='bicubic', extent=[94.5, 28.5, 84.2, 50.95],
                origin='lower',
-               cmap='plasma')  # Y range = 84.2 to 50.95 mm  vmin=-0.07, vmax=0.37
-    plt.text(82, 47.5,
+               cmap='plasma')  # Y range = 84.2 to 50.95 mm  vmin=-0.07, vmax=0.37, vmin=-0.00007, vmax=0.00045,
+    plt.text(83, 47.5,
              'Ni standard on glass slide',
              fontsize=12)
     cbar = plt.colorbar()
     cbar.set_label('Region of interest (Roi)', size=12)
+
     # plt.clim(-0.07, 0.37)
-    plt.ylim(84.2, 12.95)
+    plt.ylim(84.2, 3.45)
     plt.xlabel('X position (mm)')
     plt.ylabel('Y position (mm)')
     if peak_loc == (2.925, 2.974):
@@ -718,8 +794,37 @@ def plot_grid_data(grid_db, pair, peak_loc=(2.925, 2.974)):
     plt.legend()
     plt.show()
 
+    # dic = {"x": np.array([]), "y": np.array([]), "z": np.array([]), 'roi': np.array([])}
+    # for i in range(len(grid_array)):
+    #     a, b = grid_array[i][0], grid_array[i][1]
+    #     print(a, b)
+    #     if a == 92.5 or a == 28.5:
+    #         continue
+    #     ti_, temp_, time_, thick_ = pair[1](a, b)
+    #     print(ti_)
+        # print(ti_)
+        # dic['x'] = np.append(dic['x'], ti_)
+        # dic['y'] = np.append(dic['y'], temp_)
+        # dic['z'] = np.append(dic['z'], time_)
+        # dic['roi'] = np.append(dic['roi'], grid_array[i][2])
+    # print(dic)
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.set_xlabel('Ti concentration')
+    # ax.set_ylabel('Annealing temperature')
+    # ax.set_zlabel('Annealing time')
+    # p = ax.scatter3D(x, y, z, c=intensity, marker='o', s=(sequence - 140) * 5, label='Acquiring data')
+    # ax.plot3D(x, y, z, 'black', linestyle='--', linewidth=0.5, label='Trajectory')
+    # cbar = fig.colorbar(p, ax=ax, pad=0.2)
+    # cbar.set_label('Region of interest (Roi)', size=12)
+    # plt.title('gpCAM run number after 1:15 pm\n'
+    #           '2.965 ($\mathregular{Cu_2Mg}$) (3 1 1) or 2.9499 ($\mathregular{CuMg_2}$) (3 5 1)\n'
+    #           'Peak location = [2.925, 2.974]')
+    # plt.legend()
+    # plt.show()
 
-def grid_list(grid_db, pair, peak_loc=(2.925, 2.974)):
+
+def grid_list(grid_db, pair, grid_missing, peak_loc=(1.526, 1.588)):
     """
     :param grid_db: dataset, databroker data
     :param pair: function, convert the parameters between beamline coordinates and physical parameters
@@ -737,8 +842,23 @@ def grid_list(grid_db, pair, peak_loc=(2.925, 2.974)):
     for i in range(len(d['sample_x'])):
         roi = compute_peak_area(d['q'][i], d['mean'][i], *peak_location)
         roi = np.array([roi][0])
+        total_area = compute_total_area(np.array(d['q'][i]), np.array(d['mean'][i]))
+        roi = roi/total_area
         roi_array = np.append(roi_array, roi)
+        # Collect beamline x, y and roi information
         grid_array = np.append(grid_array, [np.array(d['sample_x'][i]), np.array(d['ss_stg2_y'][i]), roi])
+    for missing in [-1, -2]:    # For missing grid data (the last two rows)
+        result = grid_missing[missing]
+        peak_location = peak_loc
+        d = result.primary.read()
+        for i in range(len(d['sample_x'])):  # All acquiring data
+            roi = compute_peak_area(d['q'][i], d['mean'][i], *peak_location)  # Compute the roi
+            roi = np.array([roi][0])  # Clean the format to become an int
+            total_area = compute_total_area(np.array(d['q'][i]), np.array(d['mean'][i]))
+            roi = roi/total_area
+            roi_array = np.append(roi_array, roi)  # Collect the roi of the a phase
+            # Collect beamline x, y and roi information
+            grid_array = np.append(grid_array, [np.array(d['sample_x'][i]), np.array(d['ss_stg2_y'][i]), roi])
     grid_array = grid_array.reshape(-1, 3)
     # print(grid_array)
     return grid_array
